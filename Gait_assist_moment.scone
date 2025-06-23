@@ -1,0 +1,81 @@
+CmaOptimizer {
+	signature_prefix = DATE_TIME
+	min_progress = 1e-4
+	
+	init { file = par/NormalGait_30sec.par }  # 既に最適化を行ったパラメータを読み込む
+	
+	SimulationObjective {
+		max_duration = 10  # [s], シミュレーション時間
+		
+		# Model used in simulation
+		ModelHyfydy {
+			model_file = models/H0918v3.hfd
+			
+			# Optimize initial state parameters
+			state_init_file = init/InitStateH0918Gait10ActA.zml
+			initial_state_offset = 0~0.01<-0.5,0.5>
+			initial_state_offset_exclude = "*_tx;*_ty;*_u"
+			initial_load = 1
+			fixed_control_step_size = 0.005
+			use_opensim_activation_dynamics = 1
+			zero_velocity_equilibration = 1
+			enable_external_forces = 1
+		}
+		
+		
+		CompositeController {
+			<< controllers/H0918RS2v3.scone >>
+			
+			# 人工筋アシストを行うコントローラ
+			ScriptController {
+			name = "PGM_femur_r"
+			target_body = femur_r
+			distance_from_hip = 10  # [mm], PGM取り付け位置 （ 股関節 --> 胴体 ）
+			distance_from_knee = 100  # [mm], PGM取り付け位置 （ 股関節 <-- 膝 ）
+			
+			contraction_time = 300  # [ms], 人工筋を駆動させる時間
+			delay_time = 0  # [ms], かかと接地を検知してから人工筋を駆動させるまでの遅延
+			
+			pressure = 300  # [kPa], 人工筋に印加する圧力
+			PGM_length = 300  # [mm], 使用する人工筋の長さ
+			
+			num_PGM = 1  # 使用する人工筋の本数				
+			assist_start_gaitcycle = 2  # [steps], 指定した歩数左足が歩いたらアシストを開始する
+			
+			script_file = "controllers/Apply_Moment_R2.lua"
+			}
+			
+			#ScriptController {
+				#name = "PGM_femur_l"
+				#target_body = femur_l
+				#distance_from_hip = 10  # [mm], PGM取り付け位置 （ 股関節 --> 胴体 ）
+				#distance_from_knee = 100  # [mm], PGM取り付け位置 （ 股関節 <-- 膝 ）
+				
+				#contraction_time = 300  # [ms], 人工筋を駆動させる時間
+				#delay_time = 0  # [ms], かかと接地を検知してから人工筋を駆動させるまでの遅延
+				
+				#pressure = 200  # [kPa], 人工筋に印加する圧力
+				#PGM_length = 300  # [mm], 使用する人工筋の長さ
+				
+				#num_PGM = 2  # 使用する人工筋の本数				
+				#assist_start_gaitcycle = 5  # [steps], 指定した歩数左足が歩いたらアシストを開始する
+				
+				#script_file = "controllers/Apply_Moment_L2.lua"
+			#}
+			
+			## 正確な歩数を計測するためのコントローラ
+			#ScriptController {
+				#name = "step_count"
+				#script_file = "controllers/Step_Detection.lua"
+			#}
+		}
+		
+		
+		CompositeMeasure {
+			<< measures/Gait10.scone >>
+			<< measures/EffortWangCubed2000.scone >>
+			<< measures/DofKnee1.scone >>
+			<< measures/Grf14.scone >>
+		}
+	}
+}
